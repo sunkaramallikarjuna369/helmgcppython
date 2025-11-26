@@ -1,0 +1,53 @@
+
+app:
+  name: python-app
+  replicaCount: 1
+  image:
+    repository: tiangolo/uvicorn-gunicorn-fastapi
+    tag: python3.11-slim
+    pullPolicy: IfNotPresent
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  service:
+    type: ClusterIP
+    port: 8000
+
+database:
+  name: appdb
+  username: appuser
+  password: changeme123  # Override this in each environment
+
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: "{{ .Release.Name }}-db-secret"
+    secretKeys:
+      adminPasswordKey: postgres-password
+      userPasswordKey: password
+      replicationPasswordKey: replication-password
+  
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    
+    persistence:
+      enabled: true
+      storageClass: "standard-rwo"  # GKE default, uses pd-standard (cheapest)
+      size: 5Gi  # Small size to save costs
+  
+  metrics:
+    enabled: false
+  
+  architecture: standalone

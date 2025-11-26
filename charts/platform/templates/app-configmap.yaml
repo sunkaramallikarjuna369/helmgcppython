@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-app-code
+  labels:
+    app: {{ .Values.app.name }}
+    release: {{ .Release.Name }}
+data:
+  main.py: |
+    from fastapi import FastAPI, HTTPException
+    from pydantic import BaseModel
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    import os
+    from typing import List, Optional
+
+    app = FastAPI(
+        title="Platform API",
+        description="Simple FastAPI application with PostgreSQL",
+        version="1.0.0"
+    )
+
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    DB_NAME = os.getenv("DB_NAME", "appdb")
+    DB_USER = os.getenv("DB_USER", "appuser")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "changeme")
+
+    def get_db_connection():
+        """Create a database connection"""
+        try:
+            conn = psycopg2.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                database=DB_NAME,
+                user=DB_USER,
+                password=DB_PASSWORD
+            )
+            return conn
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+
+    def init_db():
+        """Initialize database with sample table"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    email VARCHAR(100) UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"Database initialization error: {str(e)}")
+
+    @app.on_event("startup")
+    async def startup_event():
+        init_db()
+
+    class User(BaseModel):
+        name: str
+        email: str
+
+    class UserResponse(BaseModel):
+        id: int
+        name: str
+        email: str
+        created_at: str
+
+    @app.get("/")
+    def read_root():
+        """Root endpoint with environment info"""
+        return {
+            "message": "Platform API is running",
+            "environment": os.getenv("ENVIRONMENT", "unknown"),
+            "database": {
+                "host": DB_HOST,
+                "database": DB_NAME,
+                "user": DB_USER
+            }
+        }
+
+    @app.get("/health")
+    def health_check():
+        """Health check endpoint"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            conn.close()
+            return {"status": "healthy", "database": "connected"}
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=f"Database unhealthy: {str(e)}")
+
+    @app.post("/users", response_model=UserResponse)
+    def create_user(user: User):
+        """Create a new user"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute(
+                "INSERT INTO users (name, email) VALUES (%s, %s) RETURNING id, name, email, created_at",
+                (user.name, user.email)
+            )
+            
+            result = cur.fetchone()
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            return {
+                "id": result["id"],
+                "name": result["name"],
+                "email": result["email"],
+                "created_at": str(result["created_at"])
+            }
+        except psycopg2.IntegrityError:
+            raise HTTPException(status_code=400, detail="Email already exists")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/users", response_model=List[UserResponse])
+    def list_users():
+        """List all users"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute("SELECT id, name, email, created_at FROM users ORDER BY id")
+            results = cur.fetchall()
+            
+            cur.close()
+            conn.close()
+            
+            return [
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "email": row["email"],
+                    "created_at": str(row["created_at"])
+                }
+                for row in results
+            ]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/users/{user_id}", response_model=UserResponse)
+    def get_user(user_id: int):
+        """Get a specific user by ID"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            
+            cur.execute("SELECT id, name, email, created_at FROM users WHERE id = %s", (user_id,))
+            result = cur.fetchone()
+            
+            cur.close()
+            conn.close()
+            
+            if result is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            return {
+                "id": result["id"],
+                "name": result["name"],
+                "email": result["email"],
+                "created_at": str(result["created_at"])
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/users/{user_id}")
+    def delete_user(user_id: int):
+        """Delete a user by ID"""
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            cur.execute("DELETE FROM users WHERE id = %s RETURNING id", (user_id,))
+            result = cur.fetchone()
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            if result is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            return {"message": "User deleted successfully", "id": user_id}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+  requirements.txt: |
+    fastapi==0.104.1
+    uvicorn==0.24.0
+    psycopg2-binary==2.9.9
+    pydantic==2.5.0

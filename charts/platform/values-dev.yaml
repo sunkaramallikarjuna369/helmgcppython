@@ -1,0 +1,20 @@
+
+app:
+  replicaCount: 1  # Single replica for dev
+
+database:
+  name: devdb
+  username: devuser
+  password: dev_password_123
+
+postgresql:
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 384Mi
+    persistence:
+      size: 5Gi

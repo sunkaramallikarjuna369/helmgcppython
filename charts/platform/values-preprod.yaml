@@ -1,0 +1,20 @@
+
+app:
+  replicaCount: 1  # Single replica for preprod
+
+database:
+  name: preproddb
+  username: preproduser
+  password: preprod_password_456
+
+postgresql:
+  primary:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+    persistence:
+      size: 5Gi

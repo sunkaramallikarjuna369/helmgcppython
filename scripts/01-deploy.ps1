@@ -81,13 +81,36 @@ Write-Host ""
 # STEP 5: Deploy to Dev Environment
 # ============================================================================
 Write-Host "Deploying to DEV environment..." -ForegroundColor Green
-Write-Host "This will take 2-3 minutes..." -ForegroundColor Gray
+Write-Host "This will take 5-10 minutes on first deploy (image pulls)..." -ForegroundColor Gray
 
-helm upgrade --install platform-dev . `
-    --namespace dev `
-    --values values-dev.yaml `
-    --wait `
-    --timeout 5m
+# Build Helm command with values files
+$helmArgs = @(
+    "upgrade", "--install", "platform-dev", ".",
+    "--namespace", "dev",
+    "--values", "values-dev.yaml"
+)
+
+# Add local values file if it exists
+$localValuesFile = "values-dev.local.yaml"
+if (Test-Path $localValuesFile) {
+    Write-Host "  Using local values file: $localValuesFile" -ForegroundColor Cyan
+    $helmArgs += @("--values", $localValuesFile)
+} elseif ($env:DEV_DB_PASSWORD) {
+    Write-Host "  Using password from DEV_DB_PASSWORD environment variable" -ForegroundColor Cyan
+    $helmArgs += @("--set-string", "database.password=$env:DEV_DB_PASSWORD")
+} else {
+    Write-Host "  WARNING: No password configured!" -ForegroundColor Yellow
+    Write-Host "  Either:" -ForegroundColor Yellow
+    Write-Host "    1. Copy values-dev.local.yaml.example to values-dev.local.yaml and set password" -ForegroundColor Gray
+    Write-Host "    2. Set DEV_DB_PASSWORD environment variable" -ForegroundColor Gray
+    Write-Host "  Using default password for now (NOT SECURE)" -ForegroundColor Red
+    $helmArgs += @("--set-string", "database.password=dev_password_123")
+}
+
+$helmArgs += @("--wait", "--timeout", "15m")
+
+# Execute Helm command
+& helm $helmArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to deploy to dev!" -ForegroundColor Red
@@ -101,13 +124,36 @@ Write-Host ""
 # STEP 6: Deploy to Preprod Environment
 # ============================================================================
 Write-Host "Deploying to PREPROD environment..." -ForegroundColor Green
-Write-Host "This will take 2-3 minutes..." -ForegroundColor Gray
+Write-Host "This will take 5-10 minutes on first deploy (image pulls)..." -ForegroundColor Gray
 
-helm upgrade --install platform-preprod . `
-    --namespace preprod `
-    --values values-preprod.yaml `
-    --wait `
-    --timeout 5m
+# Build Helm command with values files
+$helmArgs = @(
+    "upgrade", "--install", "platform-preprod", ".",
+    "--namespace", "preprod",
+    "--values", "values-preprod.yaml"
+)
+
+# Add local values file if it exists
+$localValuesFile = "values-preprod.local.yaml"
+if (Test-Path $localValuesFile) {
+    Write-Host "  Using local values file: $localValuesFile" -ForegroundColor Cyan
+    $helmArgs += @("--values", $localValuesFile)
+} elseif ($env:PREPROD_DB_PASSWORD) {
+    Write-Host "  Using password from PREPROD_DB_PASSWORD environment variable" -ForegroundColor Cyan
+    $helmArgs += @("--set-string", "database.password=$env:PREPROD_DB_PASSWORD")
+} else {
+    Write-Host "  WARNING: No password configured!" -ForegroundColor Yellow
+    Write-Host "  Either:" -ForegroundColor Yellow
+    Write-Host "    1. Copy values-preprod.local.yaml.example to values-preprod.local.yaml and set password" -ForegroundColor Gray
+    Write-Host "    2. Set PREPROD_DB_PASSWORD environment variable" -ForegroundColor Gray
+    Write-Host "  Using default password for now (NOT SECURE)" -ForegroundColor Red
+    $helmArgs += @("--set-string", "database.password=preprod_password_456")
+}
+
+$helmArgs += @("--wait", "--timeout", "15m")
+
+# Execute Helm command
+& helm $helmArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to deploy to preprod!" -ForegroundColor Red
@@ -121,13 +167,36 @@ Write-Host ""
 # STEP 7: Deploy to Prod Environment
 # ============================================================================
 Write-Host "Deploying to PROD environment..." -ForegroundColor Green
-Write-Host "This will take 2-3 minutes..." -ForegroundColor Gray
+Write-Host "This will take 5-10 minutes on first deploy (image pulls)..." -ForegroundColor Gray
 
-helm upgrade --install platform-prod . `
-    --namespace prod `
-    --values values-prod.yaml `
-    --wait `
-    --timeout 5m
+# Build Helm command with values files
+$helmArgs = @(
+    "upgrade", "--install", "platform-prod", ".",
+    "--namespace", "prod",
+    "--values", "values-prod.yaml"
+)
+
+# Add local values file if it exists
+$localValuesFile = "values-prod.local.yaml"
+if (Test-Path $localValuesFile) {
+    Write-Host "  Using local values file: $localValuesFile" -ForegroundColor Cyan
+    $helmArgs += @("--values", $localValuesFile)
+} elseif ($env:PROD_DB_PASSWORD) {
+    Write-Host "  Using password from PROD_DB_PASSWORD environment variable" -ForegroundColor Cyan
+    $helmArgs += @("--set-string", "database.password=$env:PROD_DB_PASSWORD")
+} else {
+    Write-Host "  WARNING: No password configured!" -ForegroundColor Yellow
+    Write-Host "  Either:" -ForegroundColor Yellow
+    Write-Host "    1. Copy values-prod.local.yaml.example to values-prod.local.yaml and set password" -ForegroundColor Gray
+    Write-Host "    2. Set PROD_DB_PASSWORD environment variable" -ForegroundColor Gray
+    Write-Host "  Using default password for now (NOT SECURE)" -ForegroundColor Red
+    $helmArgs += @("--set-string", "database.password=prod_password_789")
+}
+
+$helmArgs += @("--wait", "--timeout", "15m")
+
+# Execute Helm command
+& helm $helmArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to deploy to prod!" -ForegroundColor Red

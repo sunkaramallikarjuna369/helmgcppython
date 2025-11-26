@@ -1,0 +1,6 @@
+# Local values override for DEV environment
+# Copy this file to values-dev.local.yaml and update with your actual password
+# values-dev.local.yaml is .gitignored and will not be committed
+
+database:
+  password: YOUR_DEV_PASSWORD_HERE

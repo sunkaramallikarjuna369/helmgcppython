@@ -5,9 +5,12 @@ app:
 database:
   name: devdb
   username: devuser
-  password: dev_password_123
 
 postgresql:
+  auth:
+    existingSecret: platform-dev-db-secret
+    username: devuser
+    database: devdb
   primary:
     resources:
       requests:

@@ -22,12 +22,10 @@ app:
 database:
   name: appdb
   username: appuser
-  password: changeme123  # Override this in each environment
 
 postgresql:
   enabled: true
   auth:
-    existingSecret: "{{ .Release.Name }}-db-secret"
     secretKeys:
       adminPasswordKey: postgres-password
       userPasswordKey: password

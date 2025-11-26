@@ -1,0 +1,2 @@
+# Local values files with secrets (not committed to git)
+values-*.local.yaml

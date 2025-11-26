@@ -5,9 +5,12 @@ app:
 database:
   name: preproddb
   username: preproduser
-  password: preprod_password_456
 
 postgresql:
+  auth:
+    existingSecret: platform-preprod-db-secret
+    username: preproduser
+    database: preproddb
   primary:
     resources:
       requests:

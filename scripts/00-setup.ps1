@@ -6,6 +6,19 @@
 # This is the most cost-effective approach.
 
 # ============================================================================
+# STEP 0: Configure gcloud Command
+# ============================================================================
+# Force use of gcloud.cmd instead of gcloud.ps1 to avoid Python wrapper issues
+$GCLOUD = (Get-Command gcloud.cmd -ErrorAction SilentlyContinue).Source
+if (-not $GCLOUD) {
+    # Fallback to gcloud if gcloud.cmd not found
+    $GCLOUD = "gcloud"
+}
+
+Write-Host "Using gcloud at: $GCLOUD" -ForegroundColor Gray
+Write-Host ""
+
+# ============================================================================
 # STEP 1: Validate Prerequisites
 # ============================================================================
 Write-Host "========================================" -ForegroundColor Cyan
@@ -15,7 +28,7 @@ Write-Host ""
 
 # Check if gcloud is installed
 Write-Host "Checking prerequisites..." -ForegroundColor Yellow
-$gcloudVersion = gcloud version 2>&1
+& $GCLOUD version 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: gcloud CLI is not installed!" -ForegroundColor Red
     Write-Host "Please install from: https://cloud.google.com/sdk/docs/install#windows" -ForegroundColor Yellow
@@ -71,7 +84,7 @@ Write-Host ""
 # STEP 3: Set GCP Project
 # ============================================================================
 Write-Host "Setting GCP project..." -ForegroundColor Yellow
-gcloud config set project $env:PROJECT_ID
+& $GCLOUD config set project $env:PROJECT_ID 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to set project!" -ForegroundColor Red
@@ -80,7 +93,8 @@ if ($LASTEXITCODE -ne 0) {
 
 # Verify billing is enabled
 Write-Host "Verifying billing is enabled..." -ForegroundColor Yellow
-$billingInfo = gcloud billing projects describe $env:PROJECT_ID --format="value(billingEnabled)" 2>&1
+$billingInfo = & $GCLOUD billing projects describe $env:PROJECT_ID --format="value(billingEnabled)" 2>&1 | Out-String
+$billingInfo = $billingInfo.Trim()
 
 if ($billingInfo -ne "True") {
     Write-Host "ERROR: Billing is not enabled for this project!" -ForegroundColor Red
@@ -103,7 +117,7 @@ $apis = @(
 
 foreach ($api in $apis) {
     Write-Host "  Enabling $api..." -ForegroundColor Cyan
-    gcloud services enable $api --project=$env:PROJECT_ID 2>&1 | Out-Null
+    & $GCLOUD services enable $api --project=$env:PROJECT_ID 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "    [OK]" -ForegroundColor Green
     } else {
@@ -131,14 +145,32 @@ if ($confirmation -ne "yes") {
 }
 
 # Create the cluster
-gcloud container clusters create-auto $CLUSTER_NAME `
-    --region=$env:REGION `
-    --project=$env:PROJECT_ID `
-    --release-channel=regular
+Write-Host "Executing cluster creation command..." -ForegroundColor Gray
+Write-Host "This will take 10-15 minutes. Output will be logged to gke-create.log" -ForegroundColor Gray
+Write-Host ""
 
-if ($LASTEXITCODE -ne 0) {
+# Use Start-Process to avoid PowerShell treating stderr as errors
+$createArgs = @(
+    "container",
+    "clusters",
+    "create-auto",
+    $CLUSTER_NAME,
+    "--region=$env:REGION",
+    "--project=$env:PROJECT_ID",
+    "--release-channel=regular"
+)
+
+$process = Start-Process -FilePath $GCLOUD -ArgumentList $createArgs -NoNewWindow -Wait -PassThru -RedirectStandardOutput "gke-create.log" -RedirectStandardError "gke-create-err.log"
+
+if ($process.ExitCode -ne 0) {
     Write-Host ""
     Write-Host "ERROR: Failed to create cluster!" -ForegroundColor Red
+    Write-Host "Check gke-create-err.log for details" -ForegroundColor Yellow
+    if (Test-Path "gke-create-err.log") {
+        Write-Host ""
+        Write-Host "Error details:" -ForegroundColor Yellow
+        Get-Content "gke-create-err.log" | Select-Object -Last 20
+    }
     exit 1
 }
 
@@ -151,9 +183,7 @@ Write-Host "[OK] Cluster created successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Configuring kubectl..." -ForegroundColor Yellow
 
-gcloud container clusters get-credentials $CLUSTER_NAME `
-    --region=$env:REGION `
-    --project=$env:PROJECT_ID
+& $GCLOUD container clusters get-credentials $CLUSTER_NAME --region=$env:REGION --project=$env:PROJECT_ID 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to get cluster credentials!" -ForegroundColor Red

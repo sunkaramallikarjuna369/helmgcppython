@@ -7,6 +7,8 @@ database:
   username: devuser
 
 postgresql:
+  image:
+    tag: "16"
   auth:
     existingSecret: platform-dev-db-secret
     username: devuser

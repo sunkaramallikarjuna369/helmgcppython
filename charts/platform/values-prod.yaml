@@ -7,6 +7,8 @@ database:
   username: produser
 
 postgresql:
+  image:
+    tag: "16"
   auth:
     existingSecret: platform-prod-db-secret
     username: produser

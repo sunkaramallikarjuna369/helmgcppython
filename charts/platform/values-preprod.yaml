@@ -7,6 +7,8 @@ database:
   username: preproduser
 
 postgresql:
+  image:
+    tag: "16"
   auth:
     existingSecret: platform-preprod-db-secret
     username: preproduser

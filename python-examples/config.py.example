@@ -1,0 +1,36 @@
+"""
+Database configuration template
+
+Copy this file to config.py and update with your actual credentials.
+config.py is in .gitignore and will not be committed.
+
+Usage:
+    cp config.py.example config.py
+    # Edit config.py with your credentials
+"""
+
+# Database connection configuration
+# These match the values in your Helm chart values files
+DB_CONFIG = {
+    'dev': {
+        'host': 'localhost',
+        'port': 5432,
+        'database': 'devdb',
+        'user': 'devuser',
+        'password': 'dev_password_123'  # Change this to match your values-dev.yaml
+    },
+    'preprod': {
+        'host': 'localhost',
+        'port': 5433,
+        'database': 'preproddb',
+        'user': 'preproduser',
+        'password': 'preprod_password_456'  # Change this to match your values-preprod.yaml
+    },
+    'prod': {
+        'host': 'localhost',
+        'port': 5434,
+        'database': 'proddb',
+        'user': 'produser',
+        'password': 'prod_password_789_CHANGE_THIS'  # Change this to match your values-prod.yaml
+    }
+}
